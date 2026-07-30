@@ -1,0 +1,7 @@
+target/
+.env
+src/main/resources/application-local.yml
+*.log
+.idea/
+*.iml
+.DS_Store
