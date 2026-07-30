@@ -1,0 +1,11 @@
+target
+.env
+src/main/resources/application-local.yml
+*.log
+.git
+.gitignore
+.idea
+*.iml
+.mvn
+mvnw
+mvnw.cmd

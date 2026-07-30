@@ -1,0 +1,35 @@
+package com.devsclinic.backend.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+/** A medicine/product tracked in the pharmacy inventory. */
+@Document(collection = "inventory")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryItem {
+
+    @Id
+    private String id;
+
+    private String name;
+    private String category;
+    private double price;
+    private int stock;
+    private int threshold;
+    /** ISO date string (yyyy-MM-dd), matching the frontend's date input format. */
+    private String expiry;
+    private String supplier;
+
+    /** Internal bookkeeping: true once a low-stock notification has been raised for the current dip. */
+    @JsonIgnore
+    @Builder.Default
+    private boolean lowStockNotified = false;
+}
