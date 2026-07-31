@@ -1,6 +1,7 @@
 package com.devsclinic.backend.service;
 
 import com.devsclinic.backend.dto.InvoiceRequest;
+import com.devsclinic.backend.dto.InvoiceUpdateRequest;
 import com.devsclinic.backend.dto.LineItemRequest;
 import com.devsclinic.backend.exception.ResourceNotFoundException;
 import com.devsclinic.backend.model.*;
@@ -87,6 +88,34 @@ public class BillingService {
         patientRepository.save(patient);
 
         return saved;
+    }
+
+    /** Updates a payment's status/method (e.g. correcting how it was actually paid). */
+    public Invoice update(String id, InvoiceUpdateRequest request) {
+        Invoice invoice = getById(id);
+        invoice.setStatus(request.status());
+        invoice.setMethod(request.method());
+        Invoice saved = invoiceRepository.save(invoice);
+
+        patientRepository.findById(invoice.getPatientId()).ifPresent(patient -> {
+            patient.getInvoices().stream()
+                    .filter(summary -> summary.getId().equals(saved.getId()))
+                    .findFirst()
+                    .ifPresent(summary -> summary.setStatus(saved.getStatus()));
+            patientRepository.save(patient);
+        });
+
+        return saved;
+    }
+
+    public void delete(String id) {
+        Invoice invoice = getById(id);
+        invoiceRepository.deleteById(id);
+
+        patientRepository.findById(invoice.getPatientId()).ifPresent(patient -> {
+            patient.getInvoices().removeIf(summary -> summary.getId().equals(id));
+            patientRepository.save(patient);
+        });
     }
 
     private LineItem toLineItem(LineItemRequest r) {

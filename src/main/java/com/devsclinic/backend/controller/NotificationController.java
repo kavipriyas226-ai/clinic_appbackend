@@ -2,6 +2,7 @@ package com.devsclinic.backend.controller;
 
 import com.devsclinic.backend.model.Notification;
 import com.devsclinic.backend.service.NotificationService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,5 +35,11 @@ public class NotificationController {
     @PutMapping("/read-all")
     public void markAllRead() {
         notificationService.markAllRead();
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String id) {
+        notificationService.delete(id);
     }
 }

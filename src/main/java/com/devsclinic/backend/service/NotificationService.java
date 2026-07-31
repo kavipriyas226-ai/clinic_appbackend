@@ -42,6 +42,13 @@ public class NotificationService {
         notificationRepository.saveAll(unread);
     }
 
+    public void delete(String id) {
+        if (!notificationRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Notification not found: " + id);
+        }
+        notificationRepository.deleteById(id);
+    }
+
     /** Raises a new low-stock alert for the given item. Called once per low-stock "crossing" event. */
     public void createLowStockNotification(InventoryItem item) {
         List<String> existingIds = notificationRepository.findAll().stream().map(Notification::getId).toList();

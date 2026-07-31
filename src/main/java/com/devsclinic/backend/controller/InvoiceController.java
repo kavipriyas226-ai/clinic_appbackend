@@ -1,6 +1,7 @@
 package com.devsclinic.backend.controller;
 
 import com.devsclinic.backend.dto.InvoiceRequest;
+import com.devsclinic.backend.dto.InvoiceUpdateRequest;
 import com.devsclinic.backend.dto.PaymentsSummaryResponse;
 import com.devsclinic.backend.model.Invoice;
 import com.devsclinic.backend.service.BillingService;
@@ -42,5 +43,16 @@ public class InvoiceController {
     @GetMapping("/summary")
     public PaymentsSummaryResponse getSummary(@RequestParam(defaultValue = "total") String period) {
         return paymentService.getSummary(period);
+    }
+
+    @PutMapping("/{id}")
+    public Invoice update(@PathVariable String id, @Valid @RequestBody InvoiceUpdateRequest request) {
+        return billingService.update(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable String id) {
+        billingService.delete(id);
     }
 }
