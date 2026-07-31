@@ -72,6 +72,8 @@ public class InventoryService {
         InventoryItem saved = inventoryItemRepository.save(item);
         if (isLowNow && !alreadyFlagged) {
             notificationService.createLowStockNotification(saved);
+        } else if (!isLowNow && alreadyFlagged) {
+            notificationService.resolveLowStockNotifications(saved.getId());
         }
         return saved;
     }
@@ -81,5 +83,6 @@ public class InventoryService {
             throw new ResourceNotFoundException("Medicine not found: " + id);
         }
         inventoryItemRepository.deleteById(id);
+        notificationService.resolveLowStockNotifications(id);
     }
 }

@@ -61,4 +61,9 @@ public class NotificationService {
 
         notificationRepository.save(notification);
     }
+
+    /** Clears any low-stock alert(s) for an item once its stock has been resolved (back above threshold). */
+    public void resolveLowStockNotifications(String itemId) {
+        notificationRepository.deleteByItemId(itemId);
+    }
 }

@@ -1,7 +1,0 @@
-# Local-only overrides — gitignored. Real MongoDB Atlas credentials live here so they
-# never get committed. In production, set MONGODB_URI as a real environment variable
-# instead and this file simply won't exist.
-spring:
-  data:
-    mongodb:
-      uri: mongodb+srv://devshairandskinclinic2026_db_user:devs1234@devsclinic.cyrwht5.mongodb.net/devsclinic?appName=devsClinic
