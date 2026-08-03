@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         // Clinic name/tagline/logo are shown on the (unauthenticated) login page.
                         .requestMatchers(HttpMethod.GET, "/api/clinic-profile").permitAll()
+                        // User management is Admin-only.
+                        .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -50,7 +50,7 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        seedAccount();
+        seedAccounts();
         seedClinicProfile();
         seedTreatmentOptions();
         seedInventory();
@@ -78,13 +78,43 @@ public class DataSeeder implements CommandLineRunner {
         log.info("Backfilled {} low-stock notification(s)", toNotify.size());
     }
 
-    private void seedAccount() {
-        if (accountRepository.count() > 0) return;
+    /**
+     * Seeds 1 Admin + 2 default Users on a fresh database. For a pre-existing deployment
+     * from before roles existed, the sole original account is tagged as ADMIN in place —
+     * its username/password are never touched — and the 2 default Users are added
+     * alongside it. Idempotent: safe to run on every startup.
+     */
+    private void seedAccounts() {
+        if (accountRepository.count() == 0) {
+            accountRepository.save(Account.builder()
+                    .username("devs.hairandskinclinic2026@gmail.com")
+                    .passwordHash(passwordEncoder.encode("password"))
+                    .role("ADMIN")
+                    .enabled(true)
+                    .build());
+            log.info("Seeded default admin account");
+        } else if (accountRepository.countByRole("ADMIN") == 0) {
+            accountRepository.findAll().stream().findFirst().ifPresent(original -> {
+                original.setRole("ADMIN");
+                original.setEnabled(true);
+                accountRepository.save(original);
+                log.info("Migrated existing account '{}' to the ADMIN role", original.getUsername());
+            });
+        }
+
+        createUserIfMissing("staff1@devshairandskinclinic.in", "Staff1@2026");
+        createUserIfMissing("staff2@devshairandskinclinic.in", "Staff2@2026");
+    }
+
+    private void createUserIfMissing(String username, String password) {
+        if (accountRepository.findByUsernameIgnoreCase(username).isPresent()) return;
         accountRepository.save(Account.builder()
-                .username("devs.hairandskinclinic2026@gmail.com")
-                .passwordHash(passwordEncoder.encode("password"))
+                .username(username)
+                .passwordHash(passwordEncoder.encode(password))
+                .role("USER")
+                .enabled(true)
                 .build());
-        log.info("Seeded account");
+        log.info("Seeded default user account: {}", username);
     }
 
     private void seedClinicProfile() {

@@ -23,15 +23,26 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        Account account = accountRepository.findAll().stream().findFirst()
+        Account account = accountRepository.findByUsernameIgnoreCase(request.username())
                 .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
 
-        if (!account.getUsername().equalsIgnoreCase(request.username())
-                || !passwordEncoder.matches(request.password(), account.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.password(), account.getPasswordHash())) {
             throw new BadCredentialsException("Invalid username or password");
         }
 
-        String token = jwtService.generateToken(account.getUsername());
-        return new LoginResponse(token, account.getUsername());
+        if (!account.isEnabled()) {
+            throw new BadCredentialsException("This account has been disabled. Contact your administrator.");
+        }
+
+        if (!account.getRole().equalsIgnoreCase(request.loginType())) {
+            throw new BadCredentialsException("Please use \"" + displayLoginType(account.getRole()) + "\" to sign in with this account.");
+        }
+
+        String token = jwtService.generateToken(account.getUsername(), account.getRole());
+        return new LoginResponse(token, account.getUsername(), account.getRole());
+    }
+
+    private String displayLoginType(String role) {
+        return "ADMIN".equalsIgnoreCase(role) ? "Admin Login" : "User Login";
     }
 }

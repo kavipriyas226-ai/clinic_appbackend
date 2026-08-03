@@ -14,8 +14,9 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Single-account app: a valid token is enough proof of identity, there's no per-user
- * role lookup needed. Sets a minimal authenticated principal in the security context.
+ * A valid token proves identity; the role claim embedded at login time (ADMIN/USER)
+ * becomes the Spring Security authority, so admin-only routes can be gated by role
+ * without a database lookup on every request.
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -38,8 +39,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             if (jwtService.isTokenValid(token)) {
                 String username = jwtService.extractUsername(token);
+                String role = jwtService.extractRole(token);
+                String authority = "ROLE_" + (role != null ? role : "USER");
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        username, null, List.of(() -> "ROLE_USER"));
+                        username, null, List.of(() -> authority));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
