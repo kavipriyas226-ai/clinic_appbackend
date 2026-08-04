@@ -43,6 +43,6 @@ public class AuthService {
     }
 
     private String displayLoginType(String role) {
-        return "ADMIN".equalsIgnoreCase(role) ? "Admin Login" : "User Login";
+        return "ADMIN".equalsIgnoreCase(role) ? "Admin Login" : "Staff Login";
     }
 }

@@ -14,10 +14,16 @@ public class InventoryService {
 
     private final InventoryItemRepository inventoryItemRepository;
     private final NotificationService notificationService;
+    private final InventoryActivityService inventoryActivityService;
 
-    public InventoryService(InventoryItemRepository inventoryItemRepository, NotificationService notificationService) {
+    public InventoryService(
+            InventoryItemRepository inventoryItemRepository,
+            NotificationService notificationService,
+            InventoryActivityService inventoryActivityService
+    ) {
         this.inventoryItemRepository = inventoryItemRepository;
         this.notificationService = notificationService;
+        this.inventoryActivityService = inventoryActivityService;
     }
 
     public List<InventoryItem> getAll() {
@@ -49,8 +55,10 @@ public class InventoryService {
                 .build();
 
         InventoryItem saved = inventoryItemRepository.save(item);
+        inventoryActivityService.logCreated(saved);
         if (isLow) {
             notificationService.createLowStockNotification(saved);
+            inventoryActivityService.logLowStock(saved);
         }
         return saved;
     }
@@ -58,6 +66,7 @@ public class InventoryService {
     public InventoryItem update(String id, InventoryItemRequest request) {
         InventoryItem item = getById(id);
         boolean alreadyFlagged = item.isLowStockNotified();
+        int previousStock = item.getStock();
 
         item.setName(request.name());
         item.setCategory(request.category());
@@ -72,8 +81,17 @@ public class InventoryService {
         item.setLowStockNotified(isLowNow);
 
         InventoryItem saved = inventoryItemRepository.save(item);
+
+        int stockDelta = saved.getStock() - previousStock;
+        if (stockDelta != 0) {
+            inventoryActivityService.logStockChange(saved, stockDelta);
+        } else {
+            inventoryActivityService.logUpdated(saved);
+        }
+
         if (isLowNow && !alreadyFlagged) {
             notificationService.createLowStockNotification(saved);
+            inventoryActivityService.logLowStock(saved);
         } else if (!isLowNow && alreadyFlagged) {
             notificationService.resolveLowStockNotifications(saved.getId());
         }
@@ -81,10 +99,9 @@ public class InventoryService {
     }
 
     public void delete(String id) {
-        if (!inventoryItemRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Medicine not found: " + id);
-        }
+        InventoryItem item = getById(id);
         inventoryItemRepository.deleteById(id);
         notificationService.resolveLowStockNotifications(id);
+        inventoryActivityService.logDeleted(item);
     }
 }
