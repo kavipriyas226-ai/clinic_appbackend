@@ -44,6 +44,7 @@ public class InventoryService {
                 .threshold(request.threshold())
                 .expiry(request.expiry())
                 .supplier(request.supplier())
+                .barcode(request.barcode())
                 .lowStockNotified(isLow)
                 .build();
 
@@ -65,6 +66,7 @@ public class InventoryService {
         item.setThreshold(request.threshold());
         item.setExpiry(request.expiry());
         item.setSupplier(request.supplier());
+        item.setBarcode(request.barcode());
 
         boolean isLowNow = item.getStock() <= item.getThreshold();
         item.setLowStockNotified(isLowNow);

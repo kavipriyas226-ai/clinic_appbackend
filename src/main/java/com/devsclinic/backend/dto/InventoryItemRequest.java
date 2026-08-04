@@ -10,6 +10,7 @@ public record InventoryItemRequest(
         @Min(value = 0, message = "Stock cannot be negative") int stock,
         @Min(value = 0, message = "Threshold cannot be negative") int threshold,
         @NotBlank(message = "Expiry date is required") String expiry,
-        @NotBlank(message = "Supplier is required") String supplier
+        @NotBlank(message = "Supplier is required") String supplier,
+        String barcode
 ) {
 }

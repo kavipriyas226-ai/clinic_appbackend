@@ -27,6 +27,8 @@ public class InventoryItem {
     /** ISO date string (yyyy-MM-dd), matching the frontend's date input format. */
     private String expiry;
     private String supplier;
+    /** Scanned product barcode (EAN/UPC/etc.), optional — used to look up this item during barcode-scan stock updates. */
+    private String barcode;
 
     /** Internal bookkeeping: true once a low-stock notification has been raised for the current dip. */
     @JsonIgnore
