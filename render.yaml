@@ -14,4 +14,4 @@ services:
       - key: JWT_EXPIRATION_MS
         value: "86400000"
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://clinic-app-nine-smoky.vercel.app"
+        value: "https://clinic-app-nine-smoky.vercel.app,http://127.0.0.1:53214,http://127.0.0.1:53215,http://127.0.0.1:53216"
