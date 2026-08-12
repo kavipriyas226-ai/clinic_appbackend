@@ -1,6 +1,7 @@
 package com.devsclinic.backend.service;
 
 import com.devsclinic.backend.dto.PaymentsSummaryResponse;
+import com.devsclinic.backend.model.InstallmentPayment;
 import com.devsclinic.backend.model.Invoice;
 import com.devsclinic.backend.repository.InvoiceRepository;
 import org.springframework.stereotype.Service;
@@ -16,19 +17,21 @@ public class PaymentService {
         this.invoiceRepository = invoiceRepository;
     }
 
-    /** Mirrors Payments.jsx's isWithinPeriod() filtering exactly. */
+    /** "Total Collected" sums actual installment payments made within the period (by
+     * payment date, not invoice date) — money genuinely received. "Total Outstanding"
+     * is the current unpaid balance across every invoice, a snapshot rather than a
+     * period-filtered figure. */
     public PaymentsSummaryResponse getSummary(String period) {
         LocalDate today = LocalDate.now();
 
         double totalCollected = invoiceRepository.findAll().stream()
-                .filter(inv -> "Paid".equals(inv.getStatus()))
-                .filter(inv -> isWithinPeriod(inv.getDate(), period, today))
-                .mapToDouble(Invoice::getTotal)
+                .flatMap(inv -> inv.getPayments().stream())
+                .filter(payment -> isWithinPeriod(payment.getDate(), period, today))
+                .mapToDouble(InstallmentPayment::getAmount)
                 .sum();
 
         double totalUnpaid = invoiceRepository.findAll().stream()
-                .filter(inv -> "Unpaid".equals(inv.getStatus()))
-                .mapToDouble(Invoice::getTotal)
+                .mapToDouble(Invoice::getBalance)
                 .sum();
 
         return new PaymentsSummaryResponse(totalCollected, totalUnpaid);

@@ -2,6 +2,7 @@ package com.devsclinic.backend.seed;
 
 import com.devsclinic.backend.model.*;
 import com.devsclinic.backend.repository.*;
+import com.devsclinic.backend.service.BillingService;
 import com.devsclinic.backend.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class DataSeeder implements CommandLineRunner {
     private final PatientRepository patientRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+    private final BillingService billingService;
 
     public DataSeeder(
             AccountRepository accountRepository,
@@ -37,7 +39,8 @@ public class DataSeeder implements CommandLineRunner {
             InventoryItemRepository inventoryItemRepository,
             PatientRepository patientRepository,
             PasswordEncoder passwordEncoder,
-            NotificationService notificationService
+            NotificationService notificationService,
+            BillingService billingService
     ) {
         this.accountRepository = accountRepository;
         this.clinicProfileRepository = clinicProfileRepository;
@@ -46,6 +49,7 @@ public class DataSeeder implements CommandLineRunner {
         this.patientRepository = patientRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService;
+        this.billingService = billingService;
     }
 
     @Override
@@ -56,6 +60,7 @@ public class DataSeeder implements CommandLineRunner {
         seedInventory();
         seedPatients();
         backfillLowStockNotifications();
+        billingService.migrateLegacyPayments();
     }
 
     /**

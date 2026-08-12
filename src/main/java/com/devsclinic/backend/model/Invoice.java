@@ -36,10 +36,20 @@ public class Invoice {
     private double subtotal;
     private double discountAmount;
     private double gstAmount;
+    /** The total treatment amount owed for this invoice. */
     private double total;
 
-    /** "Paid" or "Unpaid". */
+    /** Installment/EMI-style payments recorded against this invoice's total, one per visit. */
+    @Builder.Default
+    private List<InstallmentPayment> payments = new ArrayList<>();
+
+    /** Sum of {@link #payments} — recomputed whenever a payment is added, edited, or removed. */
+    private double amountPaid;
+    /** {@link #total} minus {@link #amountPaid}, floored at 0. */
+    private double balance;
+
+    /** "Pending" | "Partially Paid" | "Fully Paid" — derived from amountPaid vs total. */
     private String status;
-    /** "UPI" | "Card" | "Cash" | "—". */
+    /** Method of the most recent payment ("UPI" | "Card" | "Cash"), or "—" if nothing paid yet. */
     private String method;
 }

@@ -1,7 +1,7 @@
 package com.devsclinic.backend.controller;
 
+import com.devsclinic.backend.dto.InstallmentPaymentRequest;
 import com.devsclinic.backend.dto.InvoiceRequest;
-import com.devsclinic.backend.dto.InvoiceUpdateRequest;
 import com.devsclinic.backend.dto.PaymentsSummaryResponse;
 import com.devsclinic.backend.model.Invoice;
 import com.devsclinic.backend.service.BillingService;
@@ -34,6 +34,11 @@ public class InvoiceController {
         return billingService.getById(id);
     }
 
+    @GetMapping("/patient/{patientId}")
+    public List<Invoice> getByPatient(@PathVariable String patientId) {
+        return billingService.getByPatientId(patientId);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Invoice create(@Valid @RequestBody InvoiceRequest request) {
@@ -45,9 +50,24 @@ public class InvoiceController {
         return paymentService.getSummary(period);
     }
 
-    @PutMapping("/{id}")
-    public Invoice update(@PathVariable String id, @Valid @RequestBody InvoiceUpdateRequest request) {
-        return billingService.update(id, request);
+    @PostMapping("/{id}/payments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Invoice addPayment(@PathVariable String id, @Valid @RequestBody InstallmentPaymentRequest request) {
+        return billingService.addPayment(id, request);
+    }
+
+    @PutMapping("/{id}/payments/{paymentId}")
+    public Invoice updatePayment(
+            @PathVariable String id,
+            @PathVariable String paymentId,
+            @Valid @RequestBody InstallmentPaymentRequest request
+    ) {
+        return billingService.updatePayment(id, paymentId, request);
+    }
+
+    @DeleteMapping("/{id}/payments/{paymentId}")
+    public Invoice deletePayment(@PathVariable String id, @PathVariable String paymentId) {
+        return billingService.deletePayment(id, paymentId);
     }
 
     @DeleteMapping("/{id}")

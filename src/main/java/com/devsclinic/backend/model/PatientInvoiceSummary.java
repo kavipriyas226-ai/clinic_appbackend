@@ -14,5 +14,7 @@ public class PatientInvoiceSummary {
     private String id;
     private String date;
     private double amount;
+    private double amountPaid;
+    private double balance;
     private String status;
 }
