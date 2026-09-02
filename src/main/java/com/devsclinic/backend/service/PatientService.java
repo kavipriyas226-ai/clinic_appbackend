@@ -68,10 +68,21 @@ public class PatientService {
 
     public Patient update(String id, PatientUpdateRequest request) {
         Patient patient = getById(id);
+        patient.setName(request.name());
+        patient.setDob(request.dob());
+        patient.setAge(computeAge(request.dob()));
+        patient.setGender(request.gender());
+        patient.setBloodGroup(request.bloodGroup());
         patient.setPhone(request.phone());
         patient.setEmail(request.email());
         patient.setAddress(request.address());
+        patient.setEmergencyContact(request.emergencyContact());
+        patient.setReferredBy(request.referredBy());
+        patient.setConcern(request.concern());
+        patient.setDoctor(request.doctor());
+        patient.setConcernDescription(request.concernDescription());
         patient.setAllergies(request.allergies());
+        patient.setExistingMedications(request.existingMedications());
         patient.setMedicalNotes(request.medicalNotes());
         return patientRepository.save(patient);
     }
