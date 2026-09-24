@@ -32,10 +32,16 @@ public class Invoice {
     private boolean discountEnabled;
     private double discountPercent;
     private boolean gstEnabled;
+    /** "Intra-State" | "Inter-State" — determines whether GST splits into CGST+SGST or IGST. */
+    private String supplyType;
 
     private double subtotal;
     private double discountAmount;
+    /** Total GST across all line items (cgstAmount + sgstAmount + igstAmount). */
     private double gstAmount;
+    private double cgstAmount;
+    private double sgstAmount;
+    private double igstAmount;
     /** The total treatment amount owed for this invoice. */
     private double total;
 

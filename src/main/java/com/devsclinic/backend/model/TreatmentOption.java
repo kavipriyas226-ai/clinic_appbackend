@@ -22,4 +22,7 @@ public class TreatmentOption {
     /** "Skin Treatments" | "Hair Treatments" | "Cosmetic Procedures". */
     private String category;
     private double price;
+    /** GST rate as a percentage (0/5/12/18/...). Boxed so "never configured" (null, backfilled
+     * once by DataSeeder) is distinguishable from an intentional 0% (tax-exempt) rate. */
+    private Double gstRate;
 }

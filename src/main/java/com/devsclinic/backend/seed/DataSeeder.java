@@ -60,7 +60,35 @@ public class DataSeeder implements CommandLineRunner {
         seedInventory();
         seedPatients();
         backfillLowStockNotifications();
+        backfillGstRates();
         billingService.migrateLegacyPayments();
+    }
+
+    /**
+     * One-time (per item) backfill: gives every treatment/medicine that predates
+     * per-item GST rates the clinic's previous flat 18% so existing GST-enabled
+     * invoices keep behaving the same way until someone deliberately changes a rate.
+     * gstRate is a boxed Double specifically so this only touches items that have
+     * never been configured (null) — an item explicitly set to 0% is never touched.
+     */
+    private void backfillGstRates() {
+        List<TreatmentOption> treatmentsToFix = treatmentOptionRepository.findAll().stream()
+                .filter(t -> t.getGstRate() == null)
+                .toList();
+        if (!treatmentsToFix.isEmpty()) {
+            treatmentsToFix.forEach(t -> t.setGstRate(18.0));
+            treatmentOptionRepository.saveAll(treatmentsToFix);
+            log.info("Backfilled GST rate (18%) on {} treatment(s)", treatmentsToFix.size());
+        }
+
+        List<InventoryItem> itemsToFix = inventoryItemRepository.findAll().stream()
+                .filter(i -> i.getGstRate() == null)
+                .toList();
+        if (!itemsToFix.isEmpty()) {
+            itemsToFix.forEach(i -> i.setGstRate(18.0));
+            inventoryItemRepository.saveAll(itemsToFix);
+            log.info("Backfilled GST rate (18%) on {} inventory item(s)", itemsToFix.size());
+        }
     }
 
     /**
