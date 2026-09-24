@@ -19,6 +19,8 @@ import java.util.List;
 @Service
 public class BillingService {
 
+    private static final double GST_RATE = 0.18;
+
     private final InvoiceRepository invoiceRepository;
     private final PatientRepository patientRepository;
 
@@ -51,17 +53,15 @@ public class BillingService {
         Patient patient = patientRepository.findById(request.patientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + request.patientId()));
 
-        List<LineItem> rawLineItems = request.lineItems().stream()
+        List<LineItem> lineItems = request.lineItems().stream()
                 .map(this::toLineItem)
                 .toList();
 
-        String supplyType = request.supplyType() != null && !request.supplyType().isBlank()
-                ? request.supplyType() : "Intra-State";
-
-        GstCalculator.Result calc = GstCalculator.calculate(
-                rawLineItems, request.discountEnabled(), request.discountPercent(),
-                request.gstEnabled(), supplyType
-        );
+        double subtotal = lineItems.stream().mapToDouble(LineItem::getAmount).sum();
+        double discountAmount = request.discountEnabled() ? subtotal * request.discountPercent() / 100 : 0;
+        double taxable = subtotal - discountAmount;
+        double gstAmount = request.gstEnabled() ? taxable * GST_RATE : 0;
+        double total = taxable + gstAmount;
 
         List<String> existingIds = invoiceRepository.findAll().stream().map(Invoice::getId).toList();
         String newId = SequentialIdGenerator.next(existingIds, "INV-", 3001);
@@ -72,18 +72,14 @@ public class BillingService {
                 .patientId(patient.getId())
                 .patientName(patient.getName())
                 .date(today)
-                .lineItems(calc.lineItems())
+                .lineItems(lineItems)
                 .discountEnabled(request.discountEnabled())
                 .discountPercent(request.discountPercent())
                 .gstEnabled(request.gstEnabled())
-                .supplyType(supplyType)
-                .subtotal(calc.subtotal())
-                .discountAmount(calc.discountAmount())
-                .gstAmount(calc.totalGst())
-                .cgstAmount(calc.cgstAmount())
-                .sgstAmount(calc.sgstAmount())
-                .igstAmount(calc.igstAmount())
-                .total(calc.total())
+                .subtotal(subtotal)
+                .discountAmount(discountAmount)
+                .gstAmount(gstAmount)
+                .total(total)
                 .payments(new ArrayList<>())
                 .build();
 
@@ -257,7 +253,6 @@ public class BillingService {
                 .price(r.price())
                 .qty(r.qty())
                 .amount(r.amount())
-                .gstRate(r.gstRate())
                 .build();
     }
 }

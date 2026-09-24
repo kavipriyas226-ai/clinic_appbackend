@@ -11,7 +11,6 @@ public record InventoryItemRequest(
         @Min(value = 0, message = "Threshold cannot be negative") int threshold,
         @NotBlank(message = "Expiry date is required") String expiry,
         @NotBlank(message = "Supplier is required") String supplier,
-        String barcode,
-        @Min(value = 0, message = "GST rate cannot be negative") double gstRate
+        String barcode
 ) {
 }

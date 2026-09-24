@@ -36,7 +36,6 @@ public class TreatmentOptionService {
                 .name(request.name())
                 .category(request.category())
                 .price(request.price())
-                .gstRate(request.gstRate())
                 .build();
 
         return treatmentOptionRepository.save(treatment);
@@ -47,7 +46,6 @@ public class TreatmentOptionService {
         treatment.setName(request.name());
         treatment.setCategory(request.category());
         treatment.setPrice(request.price());
-        treatment.setGstRate(request.gstRate());
         return treatmentOptionRepository.save(treatment);
     }
 

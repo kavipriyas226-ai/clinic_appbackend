@@ -29,9 +29,6 @@ public class InventoryItem {
     private String supplier;
     /** Scanned product barcode (EAN/UPC/etc.), optional — used to look up this item during barcode-scan stock updates. */
     private String barcode;
-    /** GST rate as a percentage (0/5/12/18/...). Boxed so "never configured" (null, backfilled
-     * once by DataSeeder) is distinguishable from an intentional 0% (tax-exempt) rate. */
-    private Double gstRate;
 
     /** Internal bookkeeping: true once a low-stock notification has been raised for the current dip. */
     @JsonIgnore
