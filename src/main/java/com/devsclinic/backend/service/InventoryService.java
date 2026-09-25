@@ -15,15 +15,18 @@ public class InventoryService {
     private final InventoryItemRepository inventoryItemRepository;
     private final NotificationService notificationService;
     private final InventoryActivityService inventoryActivityService;
+    private final AuditLogService auditLogService;
 
     public InventoryService(
             InventoryItemRepository inventoryItemRepository,
             NotificationService notificationService,
-            InventoryActivityService inventoryActivityService
+            InventoryActivityService inventoryActivityService,
+            AuditLogService auditLogService
     ) {
         this.inventoryItemRepository = inventoryItemRepository;
         this.notificationService = notificationService;
         this.inventoryActivityService = inventoryActivityService;
+        this.auditLogService = auditLogService;
     }
 
     public List<InventoryItem> getAll() {
@@ -60,6 +63,12 @@ public class InventoryService {
             notificationService.createLowStockNotification(saved);
             inventoryActivityService.logLowStock(saved);
         }
+
+        auditLogService.record("Inventory", "Inventory Item Created", saved.getId(),
+                saved.getName() + " added to inventory (" + saved.getStock() + " units @ ₹" + saved.getPrice() + ")",
+                null,
+                "Stock: " + saved.getStock() + ", Price: ₹" + saved.getPrice() + ", Supplier: " + saved.getSupplier());
+
         return saved;
     }
 
@@ -67,6 +76,7 @@ public class InventoryService {
         InventoryItem item = getById(id);
         boolean alreadyFlagged = item.isLowStockNotified();
         int previousStock = item.getStock();
+        double previousPrice = item.getPrice();
 
         item.setName(request.name());
         item.setCategory(request.category());
@@ -89,6 +99,11 @@ public class InventoryService {
             inventoryActivityService.logUpdated(saved);
         }
 
+        auditLogService.record("Inventory", stockDelta != 0 ? "Stock Adjusted" : "Inventory Item Updated", saved.getId(),
+                saved.getName() + (stockDelta != 0 ? (stockDelta > 0 ? " — added " : " — removed ") + Math.abs(stockDelta) + " units" : " — details updated"),
+                "Stock: " + previousStock + ", Price: ₹" + previousPrice,
+                "Stock: " + saved.getStock() + ", Price: ₹" + saved.getPrice());
+
         if (isLowNow && !alreadyFlagged) {
             notificationService.createLowStockNotification(saved);
             inventoryActivityService.logLowStock(saved);
@@ -103,5 +118,10 @@ public class InventoryService {
         inventoryItemRepository.deleteById(id);
         notificationService.resolveLowStockNotifications(id);
         inventoryActivityService.logDeleted(item);
+
+        auditLogService.record("Inventory", "Inventory Item Deleted", id,
+                item.getName() + " removed from inventory (was " + item.getStock() + " units @ ₹" + item.getPrice() + ")",
+                "Stock: " + item.getStock() + ", Price: ₹" + item.getPrice(),
+                null);
     }
 }

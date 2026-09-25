@@ -23,10 +23,12 @@ public class BillingService {
 
     private final InvoiceRepository invoiceRepository;
     private final PatientRepository patientRepository;
+    private final AuditLogService auditLogService;
 
-    public BillingService(InvoiceRepository invoiceRepository, PatientRepository patientRepository) {
+    public BillingService(InvoiceRepository invoiceRepository, PatientRepository patientRepository, AuditLogService auditLogService) {
         this.invoiceRepository = invoiceRepository;
         this.patientRepository = patientRepository;
+        this.auditLogService = auditLogService;
     }
 
     public List<Invoice> getAll() {
@@ -100,6 +102,12 @@ public class BillingService {
         patient.getInvoices().add(toSummary(saved));
         patientRepository.save(patient);
 
+        auditLogService.record("Billing", "Invoice Created", saved.getId(),
+                "Invoice " + saved.getId() + " created for " + saved.getPatientName()
+                        + " — Total ₹" + saved.getTotal() + (saved.isGstEnabled() ? " (GST enabled)" : " (GST disabled)"),
+                null,
+                "Total: ₹" + saved.getTotal() + ", GST: " + (saved.isGstEnabled() ? "Enabled" : "Disabled") + ", Status: " + saved.getStatus());
+
         return saved;
     }
 
@@ -121,7 +129,14 @@ public class BillingService {
                 .note(request.note())
                 .build());
 
-        return saveAndSync(invoice);
+        Invoice saved = saveAndSync(invoice);
+
+        auditLogService.record("Payment", "Payment Added", invoiceId,
+                "Recorded a payment of ₹" + request.amount() + " (" + request.method() + ") on invoice " + invoiceId,
+                null,
+                "Amount: ₹" + request.amount() + ", Method: " + request.method() + ", Date: " + request.date());
+
+        return saved;
     }
 
     /** Edits a previously recorded installment (e.g. fixing the amount or method). */
@@ -132,21 +147,39 @@ public class BillingService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found: " + paymentId));
 
+        String oldValue = "Amount: ₹" + payment.getAmount() + ", Method: " + payment.getMethod() + ", Date: " + payment.getDate();
+
         payment.setAmount(request.amount());
         payment.setMethod(request.method());
         payment.setDate(request.date());
         payment.setNote(request.note());
 
-        return saveAndSync(invoice);
+        Invoice saved = saveAndSync(invoice);
+
+        auditLogService.record("Payment", "Payment Updated", invoiceId,
+                "Edited payment " + paymentId + " on invoice " + invoiceId,
+                oldValue,
+                "Amount: ₹" + request.amount() + ", Method: " + request.method() + ", Date: " + request.date());
+
+        return saved;
     }
 
     public Invoice deletePayment(String invoiceId, String paymentId) {
         Invoice invoice = getById(invoiceId);
-        boolean removed = invoice.getPayments().removeIf(p -> p.getId().equals(paymentId));
-        if (!removed) {
-            throw new ResourceNotFoundException("Payment not found: " + paymentId);
-        }
-        return saveAndSync(invoice);
+        InstallmentPayment removed = invoice.getPayments().stream()
+                .filter(p -> p.getId().equals(paymentId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found: " + paymentId));
+        invoice.getPayments().remove(removed);
+
+        Invoice saved = saveAndSync(invoice);
+
+        auditLogService.record("Payment", "Payment Deleted", invoiceId,
+                "Removed a payment of ₹" + removed.getAmount() + " (" + removed.getMethod() + ") from invoice " + invoiceId,
+                "Amount: ₹" + removed.getAmount() + ", Method: " + removed.getMethod() + ", Date: " + removed.getDate(),
+                null);
+
+        return saved;
     }
 
     public void delete(String id) {
@@ -157,6 +190,11 @@ public class BillingService {
             patient.getInvoices().removeIf(summary -> summary.getId().equals(id));
             patientRepository.save(patient);
         });
+
+        auditLogService.record("Billing", "Invoice Cancelled", id,
+                "Invoice " + id + " for " + invoice.getPatientName() + " was deleted (was Total ₹" + invoice.getTotal() + ", " + invoice.getStatus() + ")",
+                "Total: ₹" + invoice.getTotal() + ", Status: " + invoice.getStatus(),
+                null);
     }
 
     /** One-time (per invoice) backfill: gives every pre-existing invoice a real payment
