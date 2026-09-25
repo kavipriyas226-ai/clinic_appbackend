@@ -1,5 +1,6 @@
 package com.devsclinic.backend.config;
 
+import com.devsclinic.backend.security.AccessDeniedHandlerImpl;
 import com.devsclinic.backend.security.AuthEntryPointJwt;
 import com.devsclinic.backend.security.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,13 +24,15 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthEntryPointJwt authEntryPoint;
+    private final AccessDeniedHandlerImpl accessDeniedHandler;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, AuthEntryPointJwt authEntryPoint) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, AuthEntryPointJwt authEntryPoint, AccessDeniedHandlerImpl accessDeniedHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.authEntryPoint = authEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Bean
@@ -43,14 +46,24 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(eh -> eh.authenticationEntryPoint(authEntryPoint))
+                .exceptionHandling(eh -> eh.authenticationEntryPoint(authEntryPoint).accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Clinic name/tagline/logo are shown on the (unauthenticated) login page.
                         .requestMatchers(HttpMethod.GET, "/api/clinic-profile").permitAll()
-                        // User management is Admin-only.
+                        // User management is Admin-only — Auditor must not see or manage staff/users.
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        // Auditor is read-only everywhere else: every existing endpoint was previously
+                        // open to any authenticated role with no method-level check, so Auditor is
+                        // granted GET only, and every mutating verb is explicitly restricted back to
+                        // ADMIN/USER (their access is unchanged from before — this only removes access
+                        // Auditor would otherwise have inherited from the old blanket .authenticated()).
+                        .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "USER", "AUDITOR")
+                        .requestMatchers(HttpMethod.POST, "/api/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyRole("ADMIN", "USER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

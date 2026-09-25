@@ -107,19 +107,20 @@ public class DataSeeder implements CommandLineRunner {
             });
         }
 
-        createUserIfMissing("staff1@devshairandskinclinic.in", "Staff1@2026");
-        createUserIfMissing("staff2@devshairandskinclinic.in", "Staff2@2026");
+        createUserIfMissing("staff1@devshairandskinclinic.in", "Staff1@2026", "USER");
+        createUserIfMissing("staff2@devshairandskinclinic.in", "Staff2@2026", "USER");
+        createUserIfMissing("auditor1@devshairandskinclinic.in", "Auditor1@2026", "AUDITOR");
     }
 
-    private void createUserIfMissing(String username, String password) {
+    private void createUserIfMissing(String username, String password, String role) {
         if (accountRepository.findByUsernameIgnoreCase(username).isPresent()) return;
         accountRepository.save(Account.builder()
                 .username(username)
                 .passwordHash(passwordEncoder.encode(password))
-                .role("USER")
+                .role(role)
                 .enabled(true)
                 .build());
-        log.info("Seeded default user account: {}", username);
+        log.info("Seeded default {} account: {}", role, username);
     }
 
     private void seedClinicProfile() {

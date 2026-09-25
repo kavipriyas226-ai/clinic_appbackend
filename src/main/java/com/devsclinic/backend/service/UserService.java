@@ -16,7 +16,7 @@ import java.util.Set;
 @Service
 public class UserService {
 
-    private static final Set<String> VALID_ROLES = Set.of("ADMIN", "USER");
+    private static final Set<String> VALID_ROLES = Set.of("ADMIN", "USER", "AUDITOR");
 
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
@@ -104,7 +104,7 @@ public class UserService {
     private String normalizeRole(String role) {
         String upper = role == null ? "" : role.trim().toUpperCase();
         if (!VALID_ROLES.contains(upper)) {
-            throw new BadRequestException("Role must be either ADMIN or USER");
+            throw new BadRequestException("Role must be one of ADMIN, USER, or AUDITOR");
         }
         return upper;
     }
