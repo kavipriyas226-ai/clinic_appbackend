@@ -12,6 +12,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class InstallmentPayment {
     private String id;
+    /** This patient's sequential visit number, counted across every payment on every one of
+     * their invoices — e.g. a returning patient's next payment continues at 4, not 1. */
+    private int visitNumber;
     private double amount;
     /** "UPI" | "Card" | "Cash" | "—". */
     private String method;

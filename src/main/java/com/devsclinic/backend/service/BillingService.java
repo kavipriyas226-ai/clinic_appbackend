@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class BillingService {
@@ -92,7 +95,7 @@ public class BillingService {
                     .method(request.initialPaymentMethod() != null && !request.initialPaymentMethod().isBlank()
                             ? request.initialPaymentMethod() : "UPI")
                     .date(today)
-                    .note("1st Visit")
+                    .visitNumber(nextVisitNumber(patient.getId()))
                     .build());
         }
         recomputePaymentState(invoice);
@@ -127,6 +130,7 @@ public class BillingService {
                 .method(request.method())
                 .date(request.date())
                 .note(request.note())
+                .visitNumber(nextVisitNumber(invoice.getPatientId()))
                 .build());
 
         Invoice saved = saveAndSync(invoice);
@@ -204,18 +208,27 @@ public class BillingService {
         List<Invoice> toMigrate = invoiceRepository.findAll().stream()
                 .filter(inv -> inv.getPayments() == null || inv.getPayments().isEmpty())
                 .filter(inv -> inv.getTotal() > 0)
+                .sorted(Comparator.comparing(Invoice::getDate))
                 .toList();
         if (toMigrate.isEmpty()) return;
 
+        // Assigns visit numbers in chronological order per patient, seeded from whatever
+        // that patient already has recorded elsewhere (invoices excluded above because they
+        // already carry real payments), so a backfilled visit continues the same sequence a
+        // live payment would have used.
+        Map<String, Integer> nextVisitByPatient = new HashMap<>();
         for (Invoice invoice : toMigrate) {
             List<InstallmentPayment> payments = new ArrayList<>();
             if ("Paid".equalsIgnoreCase(invoice.getStatus()) || "Fully Paid".equalsIgnoreCase(invoice.getStatus())) {
+                nextVisitByPatient.putIfAbsent(invoice.getPatientId(), nextVisitNumber(invoice.getPatientId()));
+                int visitNumber = nextVisitByPatient.merge(invoice.getPatientId(), 1, Integer::sum) - 1;
                 payments.add(InstallmentPayment.builder()
                         .id("PAY-1")
                         .amount(invoice.getTotal())
                         .method(invoice.getMethod() != null && !invoice.getMethod().isBlank() ? invoice.getMethod() : "—")
                         .date(invoice.getDate())
                         .note("Full payment")
+                        .visitNumber(visitNumber)
                         .build());
             }
             invoice.setPayments(payments);
@@ -237,6 +250,16 @@ public class BillingService {
                     );
             patientRepository.save(patient);
         }));
+    }
+
+    /** The next sequential visit number for a patient, counted across every payment already
+     * recorded against any of their invoices — so a returning patient's next payment
+     * continues their existing sequence instead of restarting at 1 for each new invoice. */
+    private int nextVisitNumber(String patientId) {
+        int paymentsSoFar = invoiceRepository.findAllByPatientIdOrderByDateDesc(patientId).stream()
+                .mapToInt(inv -> inv.getPayments() == null ? 0 : inv.getPayments().size())
+                .sum();
+        return paymentsSoFar + 1;
     }
 
     private Invoice saveAndSync(Invoice invoice) {
