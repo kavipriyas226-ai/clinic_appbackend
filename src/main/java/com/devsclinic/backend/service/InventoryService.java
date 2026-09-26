@@ -54,6 +54,9 @@ public class InventoryService {
                 .expiry(request.expiry())
                 .supplier(request.supplier())
                 .barcode(request.barcode())
+                .gstPercent(request.gstPercent())
+                .hsnSacCode(request.hsnSacCode())
+                .priceType(request.priceType() != null && !request.priceType().isBlank() ? request.priceType() : "TAXABLE")
                 .lowStockNotified(isLow)
                 .build();
 
@@ -86,6 +89,9 @@ public class InventoryService {
         item.setExpiry(request.expiry());
         item.setSupplier(request.supplier());
         item.setBarcode(request.barcode());
+        item.setGstPercent(request.gstPercent());
+        item.setHsnSacCode(request.hsnSacCode());
+        item.setPriceType(request.priceType() != null && !request.priceType().isBlank() ? request.priceType() : "TAXABLE");
 
         boolean isLowNow = item.getStock() <= item.getThreshold();
         item.setLowStockNotified(isLowNow);
@@ -103,6 +109,29 @@ public class InventoryService {
                 saved.getName() + (stockDelta != 0 ? (stockDelta > 0 ? " — added " : " — removed ") + Math.abs(stockDelta) + " units" : " — details updated"),
                 "Stock: " + previousStock + ", Price: ₹" + previousPrice,
                 "Stock: " + saved.getStock() + ", Price: ₹" + saved.getPrice());
+
+        if (isLowNow && !alreadyFlagged) {
+            notificationService.createLowStockNotification(saved);
+            inventoryActivityService.logLowStock(saved);
+        } else if (!isLowNow && alreadyFlagged) {
+            notificationService.resolveLowStockNotifications(saved.getId());
+        }
+        return saved;
+    }
+
+    /** Increases (or decreases) a product's stock from a source other than the Inventory
+     * edit form — e.g. a recorded Purchase — reusing the same stock-change logging and
+     * low-stock notification handling as {@link #update}. */
+    public InventoryItem addStock(String id, int qtyDelta) {
+        InventoryItem item = getById(id);
+        boolean alreadyFlagged = item.isLowStockNotified();
+
+        item.setStock(item.getStock() + qtyDelta);
+        boolean isLowNow = item.getStock() <= item.getThreshold();
+        item.setLowStockNotified(isLowNow);
+
+        InventoryItem saved = inventoryItemRepository.save(item);
+        inventoryActivityService.logStockChange(saved, qtyDelta);
 
         if (isLowNow && !alreadyFlagged) {
             notificationService.createLowStockNotification(saved);

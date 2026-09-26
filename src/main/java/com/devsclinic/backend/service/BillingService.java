@@ -6,6 +6,7 @@ import com.devsclinic.backend.dto.LineItemRequest;
 import com.devsclinic.backend.exception.BadRequestException;
 import com.devsclinic.backend.exception.ResourceNotFoundException;
 import com.devsclinic.backend.model.*;
+import com.devsclinic.backend.repository.InventoryItemRepository;
 import com.devsclinic.backend.repository.InvoiceRepository;
 import com.devsclinic.backend.repository.PatientRepository;
 import com.devsclinic.backend.util.SequentialIdGenerator;
@@ -22,15 +23,25 @@ import java.util.Map;
 @Service
 public class BillingService {
 
-    private static final double GST_RATE = 0.18;
+    /** Flat GST rate used whenever a line's product hasn't been given its own GST% in Product
+     * Master yet — this is the rate every invoice used before per-item rates existed, so
+     * pre-existing/not-yet-configured products keep billing exactly as before. */
+    private static final double DEFAULT_GST_PERCENT = 18.0;
 
     private final InvoiceRepository invoiceRepository;
     private final PatientRepository patientRepository;
+    private final InventoryItemRepository inventoryItemRepository;
     private final AuditLogService auditLogService;
 
-    public BillingService(InvoiceRepository invoiceRepository, PatientRepository patientRepository, AuditLogService auditLogService) {
+    public BillingService(
+            InvoiceRepository invoiceRepository,
+            PatientRepository patientRepository,
+            InventoryItemRepository inventoryItemRepository,
+            AuditLogService auditLogService
+    ) {
         this.invoiceRepository = invoiceRepository;
         this.patientRepository = patientRepository;
+        this.inventoryItemRepository = inventoryItemRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -64,8 +75,19 @@ public class BillingService {
 
         double subtotal = lineItems.stream().mapToDouble(LineItem::getAmount).sum();
         double discountAmount = request.discountEnabled() ? subtotal * request.discountPercent() / 100 : 0;
+        // Applies the flat invoice-level discount proportionally to every line, so each line's
+        // own GST rate is charged on its fair share of the discounted taxable amount rather
+        // than on its full pre-discount amount.
+        double discountRatio = subtotal > 0 ? (subtotal - discountAmount) / subtotal : 1;
+        for (LineItem item : lineItems) {
+            double lineTaxable = item.getAmount() * discountRatio;
+            double lineGstAmount = request.gstEnabled() ? lineTaxable * item.getGstPercent() / 100 : 0;
+            item.setGstAmount(lineGstAmount);
+            item.setTotalAmount(lineTaxable + lineGstAmount);
+        }
+
         double taxable = subtotal - discountAmount;
-        double gstAmount = request.gstEnabled() ? taxable * GST_RATE : 0;
+        double gstAmount = lineItems.stream().mapToDouble(LineItem::getGstAmount).sum();
         double total = taxable + gstAmount;
 
         List<String> existingIds = invoiceRepository.findAll().stream().map(Invoice::getId).toList();
@@ -77,6 +99,9 @@ public class BillingService {
                 .patientId(patient.getId())
                 .patientName(patient.getName())
                 .date(today)
+                .partyAddress(request.partyAddress())
+                .partyGstin(request.partyGstin())
+                .partyState(request.partyState())
                 .lineItems(lineItems)
                 .discountEnabled(request.discountEnabled())
                 .discountPercent(request.discountPercent())
@@ -306,7 +331,22 @@ public class BillingService {
                 .build();
     }
 
+    /** Resolves GST%/HSN-SAC from Product Master (Medicine lines only — Treatments don't yet
+     * carry their own rate, so they use the historical flat default) and snapshots them onto
+     * the line item at creation time, since a later change to the product shouldn't rewrite
+     * an already-issued invoice. */
     private LineItem toLineItem(LineItemRequest r) {
+        double gstPercent = DEFAULT_GST_PERCENT;
+        String hsnSacCode = null;
+
+        if ("Medicine".equalsIgnoreCase(r.type())) {
+            InventoryItem product = inventoryItemRepository.findById(r.refId()).orElse(null);
+            if (product != null) {
+                if (product.getGstPercent() != null) gstPercent = product.getGstPercent();
+                hsnSacCode = product.getHsnSacCode();
+            }
+        }
+
         return LineItem.builder()
                 .refId(r.refId())
                 .type(r.type())
@@ -314,6 +354,8 @@ public class BillingService {
                 .price(r.price())
                 .qty(r.qty())
                 .amount(r.amount())
+                .gstPercent(gstPercent)
+                .hsnSacCode(hsnSacCode)
                 .build();
     }
 }

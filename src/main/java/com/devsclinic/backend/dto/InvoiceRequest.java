@@ -13,6 +13,9 @@ public record InvoiceRequest(
         boolean discountEnabled,
         double discountPercent,
         boolean gstEnabled,
+        String partyAddress,
+        String partyGstin,
+        String partyState,
         /** Amount received during this (first) visit — may be less than the invoice total to start an installment plan. 0 leaves the invoice fully unpaid. */
         @Min(value = 0, message = "Amount received cannot be negative") double initialPaymentAmount,
         String initialPaymentMethod

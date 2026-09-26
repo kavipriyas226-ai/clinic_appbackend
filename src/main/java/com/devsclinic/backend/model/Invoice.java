@@ -26,6 +26,12 @@ public class Invoice {
     /** ISO date string (yyyy-MM-dd). */
     private String date;
 
+    // Party (billed-to) details for the printed GST invoice — patientName above doubles as the
+    // party name, these fill out the rest. All optional: not every patient has a GSTIN.
+    private String partyAddress;
+    private String partyGstin;
+    private String partyState;
+
     @Builder.Default
     private List<LineItem> lineItems = new ArrayList<>();
 
